@@ -1,36 +1,52 @@
 import * as admin from "firebase-admin";
+import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { getAuth, Auth } from "firebase-admin/auth";
 import fs from "fs";
 import path from "path";
 
-if (!admin.apps.length) {
-  try {
+let adminApp: admin.app.App | null = null;
+let firestoreDb: Firestore | null = null;
+let firebaseAuth: Auth | null = null;
+
+try {
+  if (!admin.getApps().length) {
     const files = fs.readdirSync(process.cwd());
-    const serviceAccountFile = files.find(f => f.includes("firebase-adminsdk") && f.endsWith(".json"));
+    const serviceAccountFile = files.find(
+      (f) => f.includes("firebase-adminsdk") && f.endsWith(".json")
+    );
+
     if (serviceAccountFile) {
       const serviceAccountPath = path.resolve(process.cwd(), serviceAccountFile);
       const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+      adminApp = admin.initializeApp({
+        credential: admin.cert(serviceAccount),
         projectId: serviceAccount.project_id || "finforcing"
       });
-      console.log(`Firebase Admin initialized using ${serviceAccountFile}`);
+      console.log(`[Firebase Admin] Initialized with credentials from ${serviceAccountFile}`);
     } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+      adminApp = admin.initializeApp({
+        credential: admin.cert(serviceAccount),
         projectId: serviceAccount.project_id || "finforcing"
       });
-      console.log("Firebase Admin initialized using FIREBASE_SERVICE_ACCOUNT env.");
+      console.log("[Firebase Admin] Initialized with FIREBASE_SERVICE_ACCOUNT environment variable.");
     } else {
-      admin.initializeApp({
+      adminApp = admin.initializeApp({
         projectId: "finforcing"
       });
-      console.log("Firebase Admin initialized in default mode.");
+      console.log("[Firebase Admin] Initialized in default project mode.");
     }
-  } catch (error) {
-    console.warn("Firebase Admin initialization notice:", error);
+  } else {
+    adminApp = admin.getApp();
   }
+
+  if (adminApp) {
+    firestoreDb = getFirestore(adminApp);
+    firebaseAuth = getAuth(adminApp);
+  }
+} catch (error) {
+  console.warn("[Firebase Admin] Warning during initialization:", error);
 }
 
-export const adminDb = admin.apps.length ? admin.firestore() : null;
-export const adminAuth = admin.apps.length ? admin.auth() : null;
+export const adminDb = firestoreDb;
+export const adminAuth = firebaseAuth;

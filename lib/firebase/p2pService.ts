@@ -77,7 +77,7 @@ export class P2PService {
       name,
       email,
       role: "Зарегистрированный пользователь",
-      avatar: "👤",
+      avatar: name.slice(0, 2).toUpperCase(),
       balance: initialBalance,
       avgAmount: Math.round(initialBalance * 0.1),
       phone: "+7 707 " + Math.floor(1000000 + Math.random() * 9000000),

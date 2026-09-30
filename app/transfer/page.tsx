@@ -3,73 +3,129 @@
 import { useState, useEffect } from "react";
 import {
   ArrowRightLeft,
-  UserCheck,
   ShieldCheck,
   ShieldAlert,
   AlertTriangle,
   Clock,
-  Sparkles,
   Send,
   UserPlus,
   RefreshCw,
   Smartphone,
-  Globe,
-  Wallet,
-  CheckCircle,
+  Laptop,
+  CheckCircle2,
   XCircle,
-  KeyRound
+  KeyRound,
+  Radio,
+  FileText,
+  User,
+  Activity,
+  Layers,
+  Search
 } from "lucide-react";
-import { P2PService, P2PUser, P2PTransactionRecord } from "@/lib/firebase/p2pService";
+import { BankUser, BankTransaction } from "@/lib/firebase/db";
 import { analyzeTransaction, FraudAnalysisResult } from "@/lib/ml/fraudDetector";
 
 export default function P2PTransferPage() {
-  const [users, setUsers] = useState<P2PUser[]>([]);
+  const [users, setUsers] = useState<BankUser[]>([]);
   const [senderId, setSenderId] = useState<string>("usr_alice");
-  const [recipientId, setRecipientId] = useState<string>("usr_bob");
-  
+  const [recipientId, setRecipientId] = useState<string>("usr_boris");
+
   // Transfer Parameters
-  const [amount, setAmount] = useState<number>(150000);
-  const [hour, setHour] = useState<number>(14);
-  const [minute, setMinute] = useState<number>(30);
-  const [memoText, setMemoText] = useState<string>("Перевод за проект");
-  const [isNewRecipient, setIsNewRecipient] = useState<boolean>(false);
-  const [isNewDevice, setIsNewDevice] = useState<boolean>(false);
+  const [amount, setAmount] = useState<number>(850000);
+  const [hour, setHour] = useState<number>(2);
+  const [minute, setMinute] = useState<number>(43);
+  const [memoText, setMemoText] = useState<string>("Срочный перевод без комиссии");
+  const [isNewRecipient, setIsNewRecipient] = useState<boolean>(true);
+  const [isNewDevice, setIsNewDevice] = useState<boolean>(true);
   const [isForeignIp, setIsForeignIp] = useState<boolean>(false);
 
-  // Live Real-Time Risk Score (updates automatically as user changes inputs)
+  // Live Risk Calculation
   const [liveRisk, setLiveRisk] = useState<FraudAnalysisResult | null>(null);
 
   // Transactions History
-  const [history, setHistory] = useState<P2PTransactionRecord[]>([]);
+  const [history, setHistory] = useState<BankTransaction[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Modals & User Registration
-  const [showRegisterModal, setShowRegisterModal] = useState<boolean>(false);
-  const [newUserName, setNewUserName] = useState<string>("");
-  const [newUserEmail, setNewUserEmail] = useState<string>("");
-  const [newUserBalance, setNewUserBalance] = useState<number>(600000);
+  // View Mode: "TERMINAL" (Single view) vs "SPLIT_DEVICE" (Laptop + Phone side-by-side)
+  const [viewMode, setViewMode] = useState<"TERMINAL" | "SPLIT_DEVICE">("SPLIT_DEVICE");
+
+  // Phone Mockup Incoming Alert State
+  const [incomingPhoneAlert, setIncomingPhoneAlert] = useState<{
+    txId: string;
+    senderName: string;
+    amount: number;
+    riskScore: number;
+    riskLevel: string;
+    status: string;
+    reasons: string[];
+    time: string;
+  } | null>(null);
 
   // 2FA Verification Modal
-  const [pending2FATxn, setPending2FATxn] = useState<P2PTransactionRecord | null>(null);
+  const [pending2FATxn, setPending2FATxn] = useState<BankTransaction | null>(null);
   const [enteredOtp, setEnteredOtp] = useState<string>("");
   const [otpError, setOtpError] = useState<string>("");
 
-  // Notification Toast
-  const [toastMessage, setToastMessage] = useState<{ title: string; desc: string; type: "success" | "error" | "warning" } | null>(null);
+  // Toast status banner
+  const [bannerAlert, setBannerAlert] = useState<{
+    title: string;
+    desc: string;
+    isError: boolean;
+  } | null>(null);
 
   useEffect(() => {
-    refreshData();
+    fetchUsers();
+    fetchTransactions();
+
+    // Listen to user switch from Navbar
+    const onUserChange = () => {
+      const saved = localStorage.getItem("finforcing_session_user");
+      if (saved) {
+        try {
+          const u = JSON.parse(saved);
+          setSenderId(u.id);
+        } catch {}
+      }
+      fetchUsers();
+    };
+    window.addEventListener("finforcing_user_changed", onUserChange);
+
+    // Auto-poll every 3 seconds for real-time multi-device sync
+    const interval = setInterval(() => {
+      fetchTransactions();
+      fetchUsers();
+    }, 3000);
+
+    return () => {
+      window.removeEventListener("finforcing_user_changed", onUserChange);
+      clearInterval(interval);
+    };
   }, []);
 
-  const refreshData = () => {
-    const loadedUsers = P2PService.getUsers();
-    setUsers(loadedUsers);
-    setHistory(P2PService.getTransactions());
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("/api/users");
+      const data = await res.json();
+      if (data.users && data.users.length > 0) {
+        setUsers(data.users);
+      }
+    } catch {}
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      const res = await fetch("/api/p2p/transactions");
+      const data = await res.json();
+      if (data.transactions) {
+        setHistory(data.transactions);
+      }
+    } catch {}
   };
 
   const sender = users.find((u) => u.id === senderId) || users[0];
   const recipient = users.find((u) => u.id === recipientId) || users[1];
 
-  // Re-calculate live risk score dynamically whenever any input changes
+  // Re-calculate live fraud risk whenever any parameter changes
   useEffect(() => {
     if (!sender) return;
     const res = analyzeTransaction({
@@ -80,325 +136,329 @@ export default function P2PTransferPage() {
       senderBalanceBefore: sender.balance,
       senderAvgAmount: sender.avgAmount,
       isNewRecipient,
-      velocityLast24h: 1,
+      velocityLast24h: hour < 6 ? 3 : 1,
       isNewDevice,
       isForeignIp,
-      memoText
+      memoText,
+      senderId: sender.id,
+      recipientId: recipient?.id
     });
     setLiveRisk(res);
-  }, [amount, hour, minute, isNewRecipient, isNewDevice, isForeignIp, memoText, senderId, users]);
-
-  // Handle sender change
-  const handleSenderChange = (newSenderId: string) => {
-    setSenderId(newSenderId);
-    if (recipientId === newSenderId) {
-      const other = users.find((u) => u.id !== newSenderId);
-      if (other) setRecipientId(other.id);
-    }
-  };
+  }, [amount, hour, minute, isNewRecipient, isNewDevice, isForeignIp, memoText, senderId, recipientId, users]);
 
   // Execute Transfer
-  const handleExecuteTransfer = () => {
+  const handleExecuteTransfer = async () => {
     if (amount <= 0) {
-      alert("Пожалуйста, укажите корректную сумму");
+      alert("Укажите корректную сумму");
       return;
     }
     if (sender && amount > sender.balance) {
-      alert("Недостаточно средств на балансе отправителя!");
+      alert("Недостаточно средств на балансе отправителя");
       return;
     }
 
-    const txRecord = P2PService.executeTransfer({
-      senderId,
-      recipientId,
-      amount,
-      hour,
-      minute,
-      memoText,
-      isNewRecipient,
-      isNewDevice,
-      isForeignIp
-    });
-
-    refreshData();
-
-    if (txRecord.status === "COMPLETED") {
-      setToastMessage({
-        title: "Перевод успешно выполнен!",
-        desc: `Списано ${amount.toLocaleString()} ₸ со счета ${txRecord.senderName}. Риск-скор: ${txRecord.fraudAnalysis.fraudRiskScore}% (LOW RISK).`,
-        type: "success"
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/p2p/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderId,
+          recipientId,
+          amount,
+          hour,
+          minute,
+          memoText,
+          isNewRecipient,
+          isNewDevice,
+          isForeignIp
+        })
       });
-    } else if (txRecord.status === "REQUIRES_2FA") {
-      setPending2FATxn(txRecord);
-    } else {
-      setToastMessage({
-        title: "Транзакция заблокирована!",
-        desc: `Высокий риск мошенничества (${txRecord.fraudAnalysis.fraudRiskScore}%). Средства заморожены для защиты пользователя.`,
-        type: "error"
-      });
-    }
-  };
 
-  // Confirm 2FA OTP
-  const handleConfirm2FA = () => {
-    if (enteredOtp !== "123456" && enteredOtp !== "777777") {
-      setOtpError("Неверный SMS-код (для теста введите 123456)");
-      return;
-    }
-    if (!pending2FATxn) return;
+      const data = await res.json();
+      setIsSubmitting(false);
 
-    const ok = P2PService.confirm2FA(pending2FATxn.id);
-    if (ok) {
-      setPending2FATxn(null);
-      setEnteredOtp("");
-      setOtpError("");
-      refreshData();
-      setToastMessage({
-        title: "2FA верификация пройдена!",
-        desc: `Транзакция подтверждена владельцем. Средства переведены.`,
-        type: "success"
-      });
-    }
-  };
+      if (data.success && data.transaction) {
+        const tx: BankTransaction = data.transaction;
+        fetchUsers();
+        fetchTransactions();
 
-  // Register New User
-  const handleRegisterUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUserName) return;
-    const created = P2PService.registerUser(
-      newUserName,
-      newUserEmail || `${newUserName.toLowerCase().replace(/\s+/g, "_")}@bank.kz`,
-      newUserBalance
-    );
-    refreshData();
-    setSenderId(created.id);
-    setShowRegisterModal(false);
-    setNewUserName("");
-    setNewUserEmail("");
-    setToastMessage({
-      title: "Пользователь создан!",
-      desc: `${created.name} добавлен в систему с балансом ${created.balance.toLocaleString()} ₸.`,
-      type: "success"
-    });
+        // Trigger Phone Alert in Split-Screen Simulator
+        setIncomingPhoneAlert({
+          txId: tx.id,
+          senderName: tx.senderName,
+          amount: tx.amount,
+          riskScore: tx.fraudAnalysis.fraudRiskScore,
+          riskLevel: tx.fraudAnalysis.riskLevel,
+          status: tx.status,
+          reasons: tx.fraudAnalysis.topRiskFactors,
+          time: `${String(tx.hour).padStart(2, "0")}:${String(tx.minute).padStart(2, "0")}`
+        });
+
+        if (tx.status === "APPROVED") {
+          setBannerAlert({
+            title: `ТРАНЗАКЦИЯ ${tx.id} ИСПОЛНЕНА`,
+            desc: `Списано ${tx.amount.toLocaleString()} ₸. Риск-скор: ${tx.fraudAnalysis.fraudRiskScore}% (LOW RISK). Автоматическое согласование.`,
+            isError: false
+          });
+        } else if (tx.status === "REQUIRES_2FA") {
+          setPending2FATxn(tx);
+        } else {
+          setBannerAlert({
+            title: `ТРАНЗАКЦИЯ ${tx.id} ЗАБЛОКИРОВАНА АНТИФРОДОМ`,
+            desc: `Высокий риск мошенничества (${tx.fraudAnalysis.fraudRiskScore}%). Средства заморожены на счете отправителя для защиты депозита.`,
+            isError: true
+          });
+        }
+      } else {
+        alert(data.error || "Ошибка проведения платежа");
+      }
+    } catch (err: any) {
+      setIsSubmitting(false);
+      alert("Сетевая ошибка: " + err.message);
+    }
   };
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Toast Banner */}
-      {toastMessage && (
+    <div className="space-y-6 pb-16 font-sans">
+      {/* Top Banner Alert */}
+      {bannerAlert && (
         <div
-          className={`p-4 rounded-xl border flex items-start justify-between shadow-xl animate-fade-in ${
-            toastMessage.type === "success"
-              ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-200"
-              : toastMessage.type === "error"
-              ? "bg-rose-950/80 border-rose-500/40 text-rose-200"
-              : "bg-amber-950/80 border-amber-500/40 text-amber-200"
+          className={`p-4 rounded border font-mono text-xs flex items-start justify-between ${
+            bannerAlert.isError
+              ? "bg-rose-950/40 border-rose-800 text-rose-300"
+              : "bg-emerald-950/40 border-emerald-800 text-emerald-300"
           }`}
         >
           <div className="flex items-center gap-3">
-            {toastMessage.type === "success" ? (
-              <CheckCircle className="w-5 h-5 text-emerald-400" />
+            {bannerAlert.isError ? (
+              <XCircle className="w-4 h-4 text-rose-500 flex-shrink-0" />
             ) : (
-              <XCircle className="w-5 h-5 text-rose-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
             )}
             <div>
-              <div className="text-xs font-bold uppercase">{toastMessage.title}</div>
-              <div className="text-xs mt-0.5 opacity-90">{toastMessage.desc}</div>
+              <div className="font-bold tracking-wider">{bannerAlert.title}</div>
+              <div className="text-[11px] mt-0.5 opacity-90">{bannerAlert.desc}</div>
             </div>
           </div>
-          <button
-            onClick={() => setToastMessage(null)}
-            className="text-xs opacity-60 hover:opacity-100 px-2"
-          >
+          <button onClick={() => setBannerAlert(null)} className="text-slate-400 hover:text-white px-2">
             ✕
           </button>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header and Device Switcher */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            Dual-User P2P Simulation
+          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-slate-400 mb-1">
+            <Radio className="w-3 h-3 text-blue-500 animate-pulse" />
+            <span>P2P Transfer Clearing Engine • Firebase Firestore</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Тестирование P2P Перевода между двумя пользователями
+          <h1 className="text-xl sm:text-2xl font-bold font-mono text-white tracking-tight">
+            Межбанковские P2P Транзакции и Скоринг в Реальном Времени
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-            Выберите отправителя и получателя, настройте сумму, время и параметры безопасности. Система мгновенно рассчитает риск-скор и покажет, почему платеж безопасен или заблокирован.
+          <p className="text-xs text-slate-400 mt-1">
+            Проверка операций между реальными зарегистрированными клиентами с детекцией аномалий на двух устройствах.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Device Mode Switcher */}
+        <div className="flex items-center gap-1.5 p-1 rounded bg-slate-900 border border-slate-800">
           <button
-            onClick={() => setShowRegisterModal(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold transition-all"
+            onClick={() => setViewMode("SPLIT_DEVICE")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono transition-colors ${
+              viewMode === "SPLIT_DEVICE"
+                ? "bg-slate-800 text-white font-bold border border-slate-700"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
           >
-            <UserPlus className="w-4 h-4 text-blue-400" />
-            <span>+ Добавить человека</span>
+            <Laptop className="w-3.5 h-3.5" />
+            <span>+</span>
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>Сплит-скрин (Ноутбук + Телефон)</span>
           </button>
           <button
-            onClick={() => {
-              P2PService.resetDemoData();
-              refreshData();
-              setToastMessage({
-                title: "Данные сброшены",
-                desc: "Балансы Алисы и Бориса возвращены в исходное состояние.",
-                type: "warning"
-              });
-            }}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 text-xs transition-all"
-            title="Сбросить демо-балансы"
+            onClick={() => setViewMode("TERMINAL")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono transition-colors ${
+              viewMode === "TERMINAL"
+                ? "bg-slate-800 text-white font-bold border border-slate-700"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
           >
-            <RefreshCw className="w-4 h-4" />
+            <Laptop className="w-3.5 h-3.5" />
+            <span>Терминал рабочей станции</span>
           </button>
         </div>
       </div>
 
-      {/* Two Users Cards (Alice & Boris) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Sender Card */}
-        <div
-          className={`p-5 rounded-2xl border transition-all ${
-            sender ? "bg-slate-900/80 border-blue-500/40 shadow-lg shadow-blue-500/5" : "bg-slate-900/40 border-slate-800"
-          }`}
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
-              1. Отправитель (Sender)
-            </span>
-            <select
-              value={senderId}
-              onChange={(e) => handleSenderChange(e.target.value)}
-              className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 outline-none"
-            >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.role})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {sender && (
-            <div className="mt-4 flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl shadow-inner">
-                {sender.avatar}
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-bold text-white flex items-center gap-2">
-                  {sender.name}
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                    {sender.role}
-                  </span>
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">{sender.email}</div>
-                <div className="mt-2 flex items-center gap-4 text-xs font-mono">
-                  <div>
-                    <span className="text-slate-500 text-[10px] block">Текущий баланс:</span>
-                    <span className="font-bold text-emerald-400 text-sm">
-                      {sender.balance.toLocaleString("ru-RU")} ₸
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 text-[10px] block">Средний чек:</span>
-                    <span className="text-slate-300">
-                      {sender.avgAmount.toLocaleString("ru-RU")} ₸
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+      {/* Online Users Directory Banner */}
+      <section className="bg-slate-900/60 border border-slate-800 rounded p-4 font-mono text-xs">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+          <span className="font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+            <User className="w-3.5 h-3.5 text-blue-500" />
+            Реестр зарегистрированных клиентов ({users.length}):
+          </span>
+          <span className="text-[10px] text-slate-500">Синхронизировано с Firestore</span>
         </div>
 
-        {/* Recipient Card */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {users.map((u) => {
+            const isSelectedSender = u.id === senderId;
+            const isSelectedRecipient = u.id === recipientId;
+            return (
+              <div
+                key={u.id}
+                className={`p-3 rounded border transition-colors ${
+                  isSelectedSender
+                    ? "bg-blue-950/20 border-blue-600/50"
+                    : isSelectedRecipient
+                    ? "bg-emerald-950/20 border-emerald-600/50"
+                    : "bg-slate-950 border-slate-800 hover:border-slate-700"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-white text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span>{u.name}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500">{u.accountNumber.slice(0, 11)}...</span>
+                </div>
+
+                <div className="mt-1 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Баланс:</span>
+                  <span className="text-white font-bold">{u.balance.toLocaleString("ru-RU")} ₸</span>
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSenderId(u.id);
+                      if (recipientId === u.id) {
+                        const other = users.find((o) => o.id !== u.id);
+                        if (other) setRecipientId(other.id);
+                      }
+                    }}
+                    className={`flex-1 py-1 rounded text-[10px] uppercase font-bold transition-colors ${
+                      isSelectedSender
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Отправитель
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRecipientId(u.id);
+                      if (senderId === u.id) {
+                        const other = users.find((o) => o.id !== u.id);
+                        if (other) setSenderId(other.id);
+                      }
+                    }}
+                    className={`flex-1 py-1 rounded text-[10px] uppercase font-bold transition-colors ${
+                      isSelectedRecipient
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Получатель
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Main Dual Device / Terminal Workspace */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Workstation / Sender Terminal (7 cols in split, 12 cols in terminal) */}
         <div
-          className={`p-5 rounded-2xl border transition-all ${
-            recipient ? "bg-slate-900/80 border-indigo-500/40 shadow-lg shadow-indigo-500/5" : "bg-slate-900/40 border-slate-800"
-          }`}
+          className={`${
+            viewMode === "SPLIT_DEVICE" ? "lg:col-span-7" : "lg:col-span-8"
+          } bg-slate-900/80 border border-slate-800 rounded p-6 space-y-5`}
         >
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-indigo-500" />
-              2. Получатель (Recipient)
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <Laptop className="w-4 h-4 text-blue-500" />
+              <h2 className="font-mono text-sm font-bold uppercase text-white tracking-wider">
+                Устройство 1: Ноутбук (Рабочее место Отправителя)
+              </h2>
+            </div>
+            <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+              CLIENT: {sender?.name}
             </span>
-            <select
-              value={recipientId}
-              onChange={(e) => {
-                setRecipientId(e.target.value);
-                // If selecting drop user, toggle new recipient
-                if (e.target.value === "usr_drop") {
-                  setIsNewRecipient(true);
-                } else {
-                  setIsNewRecipient(false);
-                }
+          </div>
+
+          {/* Quick Presets for Demo */}
+          <div className="flex gap-2 font-mono text-xs">
+            <button
+              onClick={() => {
+                setAmount(850000);
+                setHour(2);
+                setMinute(43);
+                setIsNewRecipient(true);
+                setIsNewDevice(true);
+                setMemoText("Срочный перевод без комиссии");
               }}
-              className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 outline-none"
+              className="px-2.5 py-1 rounded bg-rose-950/40 border border-rose-800 text-rose-300 hover:bg-rose-900/50"
             >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.role})
-                </option>
-              ))}
-            </select>
+              [ ТЕСТ: КРИТИЧЕСКИЙ ФРОД 02:43 ]
+            </button>
+            <button
+              onClick={() => {
+                setAmount(35000);
+                setHour(14);
+                setMinute(15);
+                setIsNewRecipient(false);
+                setIsNewDevice(false);
+                setMemoText("Оплата услуг");
+              }}
+              className="px-2.5 py-1 rounded bg-emerald-950/40 border border-emerald-800 text-emerald-300 hover:bg-emerald-900/50"
+            >
+              [ ТЕСТ: БЕЗОПАСНАЯ ОПЕРАЦИЯ 14:15 ]
+            </button>
           </div>
 
-          {recipient && (
-            <div className="mt-4 flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl shadow-inner">
-                {recipient.avatar}
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-bold text-white flex items-center gap-2">
-                  {recipient.name}
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                    {recipient.role}
-                  </span>
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">{recipient.email}</div>
-                <div className="mt-2 flex items-center gap-4 text-xs font-mono">
-                  <div>
-                    <span className="text-slate-500 text-[10px] block">Баланс получателя:</span>
-                    <span className="font-bold text-indigo-300 text-sm">
-                      {recipient.balance.toLocaleString("ru-RU")} ₸
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 text-[10px] block">Статус контакта:</span>
-                    <span className={isNewRecipient ? "text-rose-400" : "text-emerald-400"}>
-                      {isNewRecipient ? "Новый (неизвестный)" : "В адресной книге"}
-                    </span>
-                  </div>
+          {/* Sender & Recipient Pickers */}
+          <div className="grid grid-cols-2 gap-4 font-mono text-xs">
+            <div>
+              <label className="text-slate-400 block mb-1">Счет списания:</label>
+              <div className="p-2.5 rounded bg-slate-950 border border-slate-800 text-white">
+                <div className="font-bold">{sender?.name}</div>
+                <div className="text-[10px] text-slate-500">{sender?.accountNumber}</div>
+                <div className="text-[11px] text-emerald-400 mt-1 font-bold">
+                  {sender?.balance.toLocaleString()} ₸
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Transfer Parameters & Live Risk HUD */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Form: Transfer Setup (6 cols) */}
-        <div className="lg:col-span-6 bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-          <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-blue-400" />
-              Параметры P2P перевода
-            </h2>
-            <span className="text-[11px] text-slate-500 font-mono">Real-time Hook</span>
+            <div>
+              <label className="text-slate-400 block mb-1">Счет зачисления:</label>
+              <select
+                value={recipientId}
+                onChange={(e) => setRecipientId(e.target.value)}
+                className="w-full p-2.5 rounded bg-slate-950 border border-slate-800 text-white outline-none focus:border-slate-700"
+              >
+                {users
+                  .filter((u) => u.id !== senderId)
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.balance.toLocaleString()} ₸)
+                    </option>
+                  ))}
+              </select>
+              <div className="text-[10px] text-slate-500 mt-1">
+                {recipient?.accountNumber}
+              </div>
+            </div>
           </div>
 
-          {/* Amount Slider & Presets */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-300 flex justify-between">
-              <span>Сумма перевода:</span>
-              <span className="font-mono text-base font-bold text-blue-400">
-                {amount.toLocaleString("ru-RU")} ₸
-              </span>
-            </label>
+          {/* Amount Slider & Number Input */}
+          <div className="space-y-1.5 font-mono">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Сумма операции:</span>
+              <span className="font-bold text-white text-sm">{amount.toLocaleString("ru-RU")} ₸</span>
+            </div>
             <input
               type="range"
               min="5000"
@@ -406,494 +466,329 @@ export default function P2PTransferPage() {
               step="5000"
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
-              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-blue-500"
             />
-            {/* Quick amount chips */}
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {[25000, 75000, 250000, 850000, 1200000].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setAmount(preset)}
-                  className={`text-[11px] px-2.5 py-1 rounded-md border font-mono transition-colors ${
-                    amount === preset
-                      ? "bg-blue-600 text-white border-blue-500"
-                      : "bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700"
-                  }`}
-                >
-                  {preset.toLocaleString("ru-RU")} ₸
-                </button>
-              ))}
+            <div className="flex justify-between text-[10px] text-slate-500">
+              <span>5 000 ₸</span>
+              <span>850 000 ₸</span>
+              <span>1 500 000 ₸</span>
             </div>
           </div>
 
           {/* Time Picker */}
-          <div className="space-y-2 pt-2 border-t border-slate-800">
-            <label className="text-xs font-medium text-slate-300 flex justify-between">
-              <span>Время перевода:</span>
-              <span className="font-mono text-xs font-bold text-amber-400">
-                {String(hour).padStart(2, "0")}:{String(minute).padStart(2, "0")}
-              </span>
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] text-slate-400">Час (0 - 23):</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="23"
-                  value={hour}
-                  onChange={(e) => setHour(Math.min(23, Math.max(0, Number(e.target.value))))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:border-blue-500 outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400">Минуты (0 - 59):</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={minute}
-                  onChange={(e) => setMinute(Math.min(59, Math.max(0, Number(e.target.value))))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:border-blue-500 outline-none"
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-4 font-mono text-xs">
+            <div>
+              <label className="text-slate-400 block mb-1">Час перевода (0 - 23):</label>
+              <input
+                type="number"
+                min="0"
+                max="23"
+                value={hour}
+                onChange={(e) => setHour(Math.min(23, Math.max(0, Number(e.target.value))))}
+                className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white"
+              />
             </div>
-            {/* Quick time buttons */}
-            <div className="flex gap-2">
+            <div>
+              <label className="text-slate-400 block mb-1">Минуты (0 - 59):</label>
+              <input
+                type="number"
+                min="0"
+                max="59"
+                value={minute}
+                onChange={(e) => setMinute(Math.min(59, Math.max(0, Number(e.target.value))))}
+                className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white"
+              />
+            </div>
+          </div>
+
+          {/* Security & Behavioral Flags */}
+          <div className="space-y-2 pt-2 border-t border-slate-800 font-mono text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-300">Новый получатель (первый перевод в истории):</span>
               <button
                 type="button"
-                onClick={() => { setHour(2); setMinute(43); }}
-                className="text-[10px] px-2 py-0.5 rounded bg-rose-950/60 border border-rose-800 text-rose-300 hover:bg-rose-900/60"
+                onClick={() => setIsNewRecipient(!isNewRecipient)}
+                className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                  isNewRecipient
+                    ? "bg-rose-950 text-rose-400 border-rose-800"
+                    : "bg-slate-950 text-slate-400 border-slate-800"
+                }`}
               >
-                02:43 (Ночной пик фрода)
+                {isNewRecipient ? "ДА (НОВЫЙ)" : "НЕТ (ДОВЕРЕННЫЙ)"}
               </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-300">Вход с нового неавторизованного устройства:</span>
               <button
                 type="button"
-                onClick={() => { setHour(14); setMinute(15); }}
-                className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800 text-emerald-300 hover:bg-emerald-900/60"
+                onClick={() => setIsNewDevice(!isNewDevice)}
+                className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                  isNewDevice
+                    ? "bg-rose-950 text-rose-400 border-rose-800"
+                    : "bg-slate-950 text-slate-400 border-slate-800"
+                }`}
               >
-                14:15 (Рабочее время)
+                {isNewDevice ? "ДА (НОВОЕ)" : "НЕТ (ПРИВЫЧНОЕ)"}
               </button>
             </div>
           </div>
 
-          {/* Memo & Text Vectorizer field */}
-          <div className="space-y-1.5 pt-2 border-t border-slate-800">
-            <label className="text-xs font-medium text-slate-300 flex justify-between">
-              <span>Сообщение получателю (Memo):</span>
-              <span className="text-[10px] text-slate-500">TF-IDF Vectorizer</span>
-            </label>
+          {/* Memo Text */}
+          <div className="space-y-1 font-mono text-xs">
+            <label className="text-slate-400 block">Назначение платежа:</label>
             <input
               type="text"
               value={memoText}
               onChange={(e) => setMemoText(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none"
-              placeholder="Назначение платежа..."
+              className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white outline-none focus:border-slate-700 font-sans text-xs"
             />
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                "Перевод за обед",
-                "Возврат долга",
-                "Срочный обмен крипты P2P USDT",
-                "Вывод без комиссии"
-              ].map((txt) => (
-                <button
-                  key={txt}
-                  type="button"
-                  onClick={() => setMemoText(txt)}
-                  className="text-[10px] px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200"
-                >
-                  {txt}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* Risk Toggles */}
-          <div className="space-y-2 pt-2 border-t border-slate-800">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-300">Новый получатель (не в списке контактов):</span>
-              <button
-                type="button"
-                onClick={() => setIsNewRecipient(!isNewRecipient)}
-                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
-                  isNewRecipient ? "bg-rose-600" : "bg-slate-700"
-                }`}
-              >
-                <span
-                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                    isNewRecipient ? "translate-x-5" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-300">Вход с нового смартфона/ПК:</span>
-              <button
-                type="button"
-                onClick={() => setIsNewDevice(!isNewDevice)}
-                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
-                  isNewDevice ? "bg-amber-600" : "bg-slate-700"
-                }`}
-              >
-                <span
-                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                    isNewDevice ? "translate-x-5" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-300">Зарубежный IP или VPN:</span>
-              <button
-                type="button"
-                onClick={() => setIsForeignIp(!isForeignIp)}
-                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
-                  isForeignIp ? "bg-rose-600" : "bg-slate-700"
-                }`}
-              >
-                <span
-                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                    isForeignIp ? "translate-x-5" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          {/* Submit Action Button */}
-          <button
-            onClick={handleExecuteTransfer}
-            className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2 active:scale-98 ${
-              liveRisk?.riskLevel === "HIGH"
-                ? "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30"
-                : liveRisk?.riskLevel === "MEDIUM"
-                ? "bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30"
-                : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30"
-            }`}
-          >
-            <Send className="w-4 h-4" />
-            <span>
-              {liveRisk?.riskLevel === "HIGH"
-                ? "Отправить (Система заблокирует!)"
-                : liveRisk?.riskLevel === "MEDIUM"
-                ? "Отправить (Потребуется 2FA код)"
-                : "Выполнить безопасный перевод"}
-            </span>
-          </button>
-        </div>
-
-        {/* Right HUD: Live Risk & SHAP Factor Breakdown (6 cols) */}
-        <div className="lg:col-span-6 space-y-6">
+          {/* Live Risk Preview Bar on Workstation */}
           {liveRisk && (
-            <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
-              <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-purple-400" />
-                  Предиктивный скоринг в реальном времени
-                </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-950 text-purple-400 border border-purple-800">
-                  TreeSHAP Engine
+            <div className="p-3.5 rounded bg-slate-950 border border-slate-800 font-mono text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Предварительная оценка LightGBM:</span>
+                <span
+                  className={`px-2 py-0.5 rounded font-bold border ${
+                    liveRisk.riskLevel === "HIGH"
+                      ? "bg-rose-950 text-rose-400 border-rose-800"
+                      : liveRisk.riskLevel === "MEDIUM"
+                      ? "bg-amber-950 text-amber-400 border-amber-800"
+                      : "bg-emerald-950 text-emerald-400 border-emerald-800"
+                  }`}
+                >
+                  {liveRisk.fraudRiskScore}% — {liveRisk.riskLevel} RISK
                 </span>
               </div>
-
-              {/* Gauge Score Display */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-slate-400 uppercase font-semibold">Уровень риска (Fraud Risk):</div>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-black font-mono text-white">
-                      {liveRisk.fraudRiskScore}%
-                    </span>
-                    <span
-                      className={`text-xs font-bold uppercase px-2 py-0.5 rounded border ${liveRisk.decisionBadgeColor}`}
-                    >
-                      {liveRisk.riskLevel} RISK
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-300 mt-1">
-                    Статус: <span className="font-semibold text-white">{liveRisk.decision}</span>
-                  </div>
-                </div>
-
-                {/* Visual Risk Bar Gauge */}
-                <div className="w-28 text-right">
-                  <div className="text-[10px] text-slate-500 font-mono mb-1">Шкала 0 - 100</div>
-                  <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden flex">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        liveRisk.riskLevel === "HIGH"
-                          ? "bg-rose-500 glow-rose"
-                          : liveRisk.riskLevel === "MEDIUM"
-                          ? "bg-amber-500 glow-amber"
-                          : "bg-emerald-500 glow-emerald"
-                      }`}
-                      style={{ width: `${liveRisk.fraudRiskScore}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[9px] text-slate-600 font-mono mt-1">
-                    <span>0 (Безопасно)</span>
-                    <span>100 (Фрод)</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Natural Language XAI Explanation */}
-              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-blue-500/20 space-y-1.5">
-                <div className="text-xs font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                  Автоматическое объяснение (XAI):
-                </div>
-                <p className="text-xs text-slate-200 leading-relaxed font-sans">
-                  {liveRisk.riskExplanation}
-                </p>
-              </div>
-
-              {/* SHAP Factor Waterfall */}
-              <div className="space-y-2.5">
-                <div className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Факторы, повлиявшие на решение (SHAP Values):
-                </div>
-                <div className="space-y-2">
-                  {liveRisk.shapContributions.slice(0, 5).map((factor, idx) => {
-                    const isUp = factor.direction === "UP";
-                    return (
-                      <div
-                        key={idx}
-                        className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 space-y-1 text-xs"
-                      >
-                        <div className="flex justify-between">
-                          <span className="font-medium text-slate-200">{factor.name}</span>
-                          <span
-                            className={`font-mono font-bold ${
-                              isUp ? "text-rose-400" : "text-emerald-400"
-                            }`}
-                          >
-                            {isUp ? `+${factor.impactScore}%` : `${factor.impactScore}%`}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400">{factor.detail}</div>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="text-[11px] text-slate-300 font-sans leading-relaxed">
+                {liveRisk.riskExplanation}
               </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Transaction History Section */}
-      <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-400" />
-              История P2P операций & Журнал антифрода
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Все проведенные и заблокированные транзакции с присвоенными скоринг-оценками
-            </p>
-          </div>
-          <span className="text-xs font-mono text-slate-400">
-            Всего записей: {history.length}
-          </span>
+          {/* Submit Button */}
+          <button
+            onClick={handleExecuteTransfer}
+            disabled={isSubmitting}
+            className={`w-full py-3 rounded font-mono font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+              liveRisk?.riskLevel === "HIGH"
+                ? "bg-rose-600 hover:bg-rose-500 text-white"
+                : liveRisk?.riskLevel === "MEDIUM"
+                ? "bg-amber-600 hover:bg-amber-500 text-white"
+                : "bg-blue-600 hover:bg-blue-500 text-white"
+            }`}
+          >
+            {isSubmitting ? (
+              <span>ОБРАБОТКА ТРАНЗАКЦИИ...</span>
+            ) : (
+              <>
+                <Send className="w-3.5 h-3.5" />
+                <span>[ ИСПОЛНИТЬ ПЕРЕВОД: {amount.toLocaleString()} ₸ ]</span>
+              </>
+            )}
+          </button>
         </div>
 
-        {history.length === 0 ? (
-          <div className="text-center py-8 text-xs text-slate-500">
-            История пуста. Настройте параметры выше и нажмите «Выполнить перевод»!
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-3">ID / Время</th>
-                  <th className="py-2.5 px-3">Отправитель → Получатель</th>
-                  <th className="py-2.5 px-3">Сумма</th>
-                  <th className="py-2.5 px-3">Назначение</th>
-                  <th className="py-2.5 px-3">Fraud Risk</th>
-                  <th className="py-2.5 px-3">Статус</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-mono">
-                {history.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="py-3 px-3 text-slate-300">
-                      <div className="font-bold text-white">{tx.id}</div>
-                      <div className="text-[10px] text-slate-500">{tx.timeFormatted}</div>
-                    </td>
-                    <td className="py-3 px-3 text-slate-300 font-sans">
-                      <div>{tx.senderName} → {tx.recipientName}</div>
-                      {tx.isNewRecipient && (
-                        <span className="text-[9px] text-rose-400 font-mono">Новый получатель</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3 font-bold text-white">
-                      {tx.amount.toLocaleString("ru-RU")} ₸
-                    </td>
-                    <td className="py-3 px-3 font-sans text-slate-400 max-w-xs truncate">
-                      {tx.memoText}
-                    </td>
-                    <td className="py-3 px-3">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[11px] font-bold border ${tx.fraudAnalysis.decisionBadgeColor}`}
-                      >
-                        {tx.fraudAnalysis.fraudRiskScore}% ({tx.fraudAnalysis.riskLevel})
+        {/* Right Column: Smartphone Mockup / Mobile Device 2 View (5 cols in split) */}
+        {viewMode === "SPLIT_DEVICE" && (
+          <div className="lg:col-span-5 flex flex-col items-center">
+            <div className="font-mono text-xs text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-emerald-500" />
+              <span>Устройство 2: Смартфон (Интерфейс Получателя)</span>
+            </div>
+
+            {/* Smartphone Hardware Frame (Enterprise Black Frame) */}
+            <div className="w-[320px] h-[640px] bg-slate-950 rounded-[40px] border-4 border-slate-700 shadow-2xl relative overflow-hidden flex flex-col font-sans">
+              {/* Speaker / Camera Notch */}
+              <div className="h-6 bg-slate-900 flex items-center justify-between px-6 pt-1">
+                <span className="text-[10px] font-mono text-slate-400">09:41</span>
+                <div className="w-14 h-3.5 bg-black rounded-full" />
+                <div className="flex items-center gap-1 text-[10px] font-mono text-slate-400">
+                  <span>5G</span>
+                  <span>100%</span>
+                </div>
+              </div>
+
+              {/* Smartphone Bank App Header */}
+              <div className="p-4 bg-slate-900 border-b border-slate-800">
+                <div className="flex items-center justify-between font-mono">
+                  <div>
+                    <div className="text-[10px] text-slate-400 uppercase">Клиент:</div>
+                    <div className="text-xs font-bold text-white">{recipient?.name}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] text-slate-400 uppercase">Баланс:</div>
+                    <div className="text-sm font-bold text-emerald-400 font-mono">
+                      {recipient?.balance.toLocaleString()} ₸
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[9px] font-mono text-slate-500 mt-1">
+                  {recipient?.accountNumber}
+                </div>
+              </div>
+
+              {/* Smartphone Body / Screen Content */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950">
+                {/* Incoming Transfer Real-Time Alert Banner */}
+                {incomingPhoneAlert ? (
+                  <div
+                    className={`p-3.5 rounded-lg border font-mono animate-fade-in ${
+                      incomingPhoneAlert.status === "APPROVED"
+                        ? "bg-emerald-950/40 border-emerald-600 text-emerald-200"
+                        : "bg-rose-950/40 border-rose-600 text-rose-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between border-b border-current/20 pb-1.5 mb-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        {incomingPhoneAlert.status === "APPROVED"
+                          ? "ВХОДЯЩИЙ ПЕРЕВОД"
+                          : "ОПЕРАЦИЯ ЗАБЛОКИРОВАНА"}
                       </span>
-                    </td>
-                    <td className="py-3 px-3 font-sans">
-                      {tx.status === "COMPLETED" ? (
-                        <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5" /> Выполнен
-                        </span>
-                      ) : tx.status === "REQUIRES_2FA" ? (
-                        <span className="text-amber-400 font-semibold flex items-center gap-1">
-                          <KeyRound className="w-3.5 h-3.5" /> Ожидает 2FA
-                        </span>
-                      ) : (
-                        <span className="text-rose-400 font-semibold flex items-center gap-1">
-                          <XCircle className="w-3.5 h-3.5" /> Заблокирован
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <span className="text-[9px] font-mono">{incomingPhoneAlert.time}</span>
+                    </div>
+
+                    <div className="text-base font-black">
+                      {incomingPhoneAlert.amount.toLocaleString()} ₸
+                    </div>
+                    <div className="text-[11px] text-slate-300 font-sans mt-0.5">
+                      Отправитель: {incomingPhoneAlert.senderName}
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-current/20 flex items-center justify-between text-[11px]">
+                      <span>Оценка риска:</span>
+                      <span className="font-bold">
+                        {incomingPhoneAlert.riskScore}% ({incomingPhoneAlert.riskLevel})
+                      </span>
+                    </div>
+
+                    {incomingPhoneAlert.status === "BLOCKED" && (
+                      <div className="mt-2 p-2 bg-rose-950/60 rounded text-[10px] font-sans text-rose-300 space-y-0.5">
+                        <div className="font-bold uppercase">Причина блокировки:</div>
+                        {incomingPhoneAlert.reasons.map((r, i) => (
+                          <div key={i}>• {r}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded border border-dashed border-slate-800 text-center font-mono text-[11px] text-slate-500">
+                    Ожидание входящей транзакции...
+                  </div>
+                )}
+
+                {/* Recent mobile transaction stream */}
+                <div className="space-y-1.5 pt-2">
+                  <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+                    Последние операции по счету:
+                  </div>
+                  {history.slice(0, 3).map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="p-2 rounded bg-slate-900 border border-slate-800 text-xs font-mono flex justify-between items-center"
+                    >
+                      <div>
+                        <div className="text-white text-[11px]">{tx.senderName}</div>
+                        <div className="text-[9px] text-slate-500">{tx.memoText}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-white font-bold text-[11px]">
+                          {tx.amount.toLocaleString()} ₸
+                        </div>
+                        <div
+                          className={`text-[9px] font-bold ${
+                            tx.status === "APPROVED" ? "text-emerald-400" : "text-rose-400"
+                          }`}
+                        >
+                          {tx.status}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Smartphone Home Bar */}
+              <div className="h-4 bg-slate-900 flex items-center justify-center">
+                <div className="w-24 h-1 bg-slate-600 rounded-full" />
+              </div>
+            </div>
           </div>
         )}
-      </section>
+      </div>
 
-      {/* 2FA Confirmation Modal */}
-      {pending2FATxn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-amber-400 border-b border-slate-800 pb-3">
-              <Smartphone className="w-6 h-6" />
-              <div>
-                <h3 className="text-base font-bold text-white">Требуется 2FA подтверждение</h3>
-                <p className="text-xs text-slate-400">Система зафиксировала пограничный риск</p>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1">
-              <div>Перевод: <span className="font-bold text-white">{pending2FATxn.amount.toLocaleString()} ₸</span></div>
-              <div>Получатель: <span className="font-bold text-white">{pending2FATxn.recipientName}</span></div>
-              <div>Риск-скор: <span className="font-bold text-amber-400">{pending2FATxn.fraudAnalysis.fraudRiskScore}% (MEDIUM)</span></div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-slate-300 font-medium">Введите тестовый SMS-код:</label>
-              <input
-                type="text"
-                value={enteredOtp}
-                onChange={(e) => setEnteredOtp(e.target.value)}
-                placeholder="Введите 123456"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-center text-lg font-mono tracking-widest text-white focus:border-amber-500 outline-none"
-              />
-              <div className="text-[10px] text-slate-500 text-center">
-                Демо-код подтверждения: <span className="text-amber-400 font-mono font-bold">123456</span>
-              </div>
-              {otpError && <p className="text-xs text-rose-400 text-center">{otpError}</p>}
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setPending2FATxn(null)}
-                className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleConfirm2FA}
-                className="flex-1 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg shadow-amber-600/30"
-              >
-                Подтвердить
-              </button>
-            </div>
+      {/* Audit Log Data Table */}
+      <section className="bg-slate-900/80 border border-slate-800 rounded p-6 font-mono text-xs space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-blue-500" />
+            <h3 className="font-bold text-white uppercase tracking-wider">
+              Журнал транзакций & Фиксация инцидентов антифрода (Firestore)
+            </h3>
           </div>
+          <span className="text-[11px] text-slate-500">Записей: {history.length}</span>
         </div>
-      )}
 
-      {/* Register User Modal */}
-      {showRegisterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <form
-            onSubmit={handleRegisterUser}
-            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4"
-          >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-blue-400" />
-                Регистрация нового человека для теста
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowRegisterModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-slate-300 font-medium">Имя и фамилия:</label>
-              <input
-                type="text"
-                required
-                value={newUserName}
-                onChange={(e) => setNewUserName(e.target.value)}
-                placeholder="Например: Касым Жомарт"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-slate-300 font-medium">Email:</label>
-              <input
-                type="email"
-                value={newUserEmail}
-                onChange={(e) => setNewUserEmail(e.target.value)}
-                placeholder="user@example.kz"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-slate-300 font-medium">Стартовый баланс (₸):</label>
-              <input
-                type="number"
-                min="10000"
-                step="10000"
-                value={newUserBalance}
-                onChange={(e) => setNewUserBalance(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:border-blue-500 outline-none"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowRegisterModal(false)}
-                className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30"
-              >
-                Зарегистрировать
-              </button>
-            </div>
-          </form>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
+              <tr>
+                <th className="py-2 px-3">ID / Время</th>
+                <th className="py-2 px-3">Отправитель → Получатель</th>
+                <th className="py-2 px-3">Сумма (₸)</th>
+                <th className="py-2 px-3">Назначение</th>
+                <th className="py-2 px-3">Fraud Risk</th>
+                <th className="py-2 px-3 text-right">Статус</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {history.map((tx) => (
+                <tr key={tx.id} className="hover:bg-slate-800/30">
+                  <td className="py-2.5 px-3">
+                    <span className="font-bold text-white">{tx.id}</span>
+                    <span className="text-[10px] text-slate-500 block">
+                      {String(tx.hour).padStart(2, "0")}:{String(tx.minute).padStart(2, "0")}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-slate-200 font-sans">
+                    {tx.senderName} → {tx.recipientName}
+                  </td>
+                  <td className="py-2.5 px-3 font-bold text-white">
+                    {tx.amount.toLocaleString("ru-RU")} ₸
+                  </td>
+                  <td className="py-2.5 px-3 text-slate-400 font-sans truncate max-w-xs">
+                    {tx.memoText}
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        tx.fraudAnalysis.riskLevel === "HIGH"
+                          ? "bg-rose-950 text-rose-400 border-rose-800"
+                          : tx.fraudAnalysis.riskLevel === "MEDIUM"
+                          ? "bg-amber-950 text-amber-400 border-amber-800"
+                          : "bg-emerald-950 text-emerald-400 border-emerald-800"
+                      }`}
+                    >
+                      {tx.fraudAnalysis.fraudRiskScore}% ({tx.fraudAnalysis.riskLevel})
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-bold">
+                    {tx.status === "APPROVED" ? (
+                      <span className="text-emerald-400">Исполнен</span>
+                    ) : tx.status === "REQUIRES_2FA" ? (
+                      <span className="text-amber-400">Требует 2FA</span>
+                    ) : (
+                      <span className="text-rose-400">Заблокирован</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+      </section>
     </div>
   );
 }
