@@ -1,0 +1,155 @@
+{
+  "champion_model": "LightGBM",
+  "base_expected_value": -8.329660869558474,
+  "base_fraud_rate": 0.02872,
+  "metrics_summary": {
+    "model_name": "LightGBM",
+    "precision_fraud": 0.9568,
+    "recall_fraud": 0.9888,
+    "f1_fraud": 0.9725,
+    "roc_auc": 1.0,
+    "accuracy": 0.9984,
+    "confusion_matrix": {
+      "true_negative": 6063,
+      "false_positive": 8,
+      "false_negative": 2,
+      "true_positive": 177
+    },
+    "summary": "Recall: 98.9%, Precision: 95.7%, ROC-AUC: 1.0000 (Обнаружено 177 из 179 мошенничеств, ложных тревог: 8)"
+  },
+  "thresholds": {
+    "low_risk_max": 30,
+    "medium_risk_max": 70,
+    "high_risk_min": 71
+  },
+  "feature_names": [
+    "amount",
+    "hour",
+    "amount_deviation_ratio",
+    "balance_empty_ratio",
+    "velocity_last_24h",
+    "is_new_recipient",
+    "is_new_device",
+    "is_foreign_ip",
+    "transaction_type_CASH_OUT",
+    "transaction_type_MERCHANT",
+    "transaction_type_P2P_TRANSFER",
+    "transaction_type_PAYMENT",
+    "memo_аренда",
+    "memo_бензин",
+    "memo_билеты",
+    "memo_в",
+    "memo_жилья",
+    "memo_за",
+    "memo_карты",
+    "memo_кино",
+    "memo_на",
+    "memo_обеда",
+    "memo_оплата",
+    "memo_перевод",
+    "memo_пополнение",
+    "memo_репетитора",
+    "memo_срочно",
+    "memo_услуги"
+  ],
+  "top_features": [
+    {
+      "rank": 1,
+      "feature": "balance_empty_ratio",
+      "label_ru": "Доля опустошения счета",
+      "shap_importance": 0.844
+    },
+    {
+      "rank": 2,
+      "feature": "amount_deviation_ratio",
+      "label_ru": "Отклонение от обычного чека клиента",
+      "shap_importance": 0.2158
+    },
+    {
+      "rank": 3,
+      "feature": "velocity_last_24h",
+      "label_ru": "Частота переводов за 24 часа",
+      "shap_importance": 0.1892
+    },
+    {
+      "rank": 4,
+      "feature": "hour",
+      "label_ru": "Время суток (час)",
+      "shap_importance": 0.1813
+    },
+    {
+      "rank": 5,
+      "feature": "is_new_recipient",
+      "label_ru": "Новый (неизвестный) получатель",
+      "shap_importance": 0.1125
+    },
+    {
+      "rank": 6,
+      "feature": "transaction_type_PAYMENT",
+      "label_ru": "Тип: Платеж",
+      "shap_importance": 0.0994
+    },
+    {
+      "rank": 7,
+      "feature": "transaction_type_MERCHANT",
+      "label_ru": "Тип: Мерчант",
+      "shap_importance": 0.094
+    },
+    {
+      "rank": 8,
+      "feature": "transaction_type_P2P_TRANSFER",
+      "label_ru": "Тип: P2P перевод",
+      "shap_importance": 0.0811
+    },
+    {
+      "rank": 9,
+      "feature": "is_new_device",
+      "label_ru": "Новое неопознанное устройство",
+      "shap_importance": 0.0559
+    },
+    {
+      "rank": 10,
+      "feature": "is_foreign_ip",
+      "label_ru": "Иностранный IP / VPN соединение",
+      "shap_importance": 0.0349
+    },
+    {
+      "rank": 11,
+      "feature": "amount",
+      "label_ru": "Сумма транзакции",
+      "shap_importance": 0.0248
+    },
+    {
+      "rank": 12,
+      "feature": "transaction_type_CASH_OUT",
+      "label_ru": "Тип: Снятие наличных",
+      "shap_importance": 0.0222
+    }
+  ],
+  "hourly_risk_factors": {
+    "0": 0.0,
+    "1": 12.78,
+    "2": 14.45,
+    "3": 12.49,
+    "4": 11.24,
+    "5": 10.0,
+    "6": 1.12,
+    "7": 0.8,
+    "8": 0.38,
+    "9": 0.46,
+    "10": 0.23,
+    "11": 0.47,
+    "12": 0.29,
+    "13": 0.35,
+    "14": 0.46,
+    "15": 0.37,
+    "16": 0.26,
+    "17": 0.47,
+    "18": 0.54,
+    "19": 0.36,
+    "20": 0.77,
+    "21": 0.55,
+    "22": 0.76,
+    "23": 1.37
+  }
+}

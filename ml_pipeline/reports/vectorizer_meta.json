@@ -1,0 +1,105 @@
+{
+  "num_cols": [
+    "amount",
+    "hour",
+    "amount_deviation_ratio",
+    "balance_empty_ratio",
+    "velocity_last_24h"
+  ],
+  "scaler_means": {
+    "amount": 135235.748,
+    "hour": 13.0198,
+    "amount_deviation_ratio": 1.3518,
+    "balance_empty_ratio": 0.1972,
+    "velocity_last_24h": 1.3039
+  },
+  "scaler_scales": {
+    "amount": 144422.9381,
+    "hour": 4.9484,
+    "amount_deviation_ratio": 1.1929,
+    "balance_empty_ratio": 0.1297,
+    "velocity_last_24h": 0.6265
+  },
+  "binary_cols": [
+    "is_new_recipient",
+    "is_new_device",
+    "is_foreign_ip"
+  ],
+  "categorical_cols": [
+    "transaction_type"
+  ],
+  "categorical_categories": {
+    "transaction_type": [
+      "CASH_OUT",
+      "MERCHANT",
+      "P2P_TRANSFER",
+      "PAYMENT"
+    ]
+  },
+  "text_vocabulary": {
+    "на": 8,
+    "перевод": 11,
+    "услуги": 15,
+    "репетитора": 13,
+    "пополнение": 12,
+    "карты": 6,
+    "срочно": 14,
+    "оплата": 10,
+    "аренда": 0,
+    "жилья": 4,
+    "билеты": 2,
+    "в": 3,
+    "кино": 7,
+    "за": 5,
+    "бензин": 1,
+    "обеда": 9
+  },
+  "text_idf": {
+    "аренда": 3.7691,
+    "бензин": 3.7634,
+    "билеты": 3.7717,
+    "в": 3.7439,
+    "жилья": 3.7691,
+    "за": 3.7634,
+    "карты": 3.764,
+    "кино": 3.7717,
+    "на": 2.4149,
+    "обеда": 3.7539,
+    "оплата": 3.0734,
+    "перевод": 3.0795,
+    "пополнение": 3.7672,
+    "репетитора": 3.739,
+    "срочно": 3.7717,
+    "услуги": 3.739
+  },
+  "all_feature_names": [
+    "amount",
+    "hour",
+    "amount_deviation_ratio",
+    "balance_empty_ratio",
+    "velocity_last_24h",
+    "is_new_recipient",
+    "is_new_device",
+    "is_foreign_ip",
+    "transaction_type_CASH_OUT",
+    "transaction_type_MERCHANT",
+    "transaction_type_P2P_TRANSFER",
+    "transaction_type_PAYMENT",
+    "memo_аренда",
+    "memo_бензин",
+    "memo_билеты",
+    "memo_в",
+    "memo_жилья",
+    "memo_за",
+    "memo_карты",
+    "memo_кино",
+    "memo_на",
+    "memo_обеда",
+    "memo_оплата",
+    "memo_перевод",
+    "memo_пополнение",
+    "memo_репетитора",
+    "memo_срочно",
+    "memo_услуги"
+  ]
+}

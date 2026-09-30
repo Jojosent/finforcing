@@ -1,0 +1,242 @@
+[
+  {
+    "hour": 0,
+    "hour_label": "00:00 - 00:59",
+    "total_transactions": 303,
+    "fraud_count": 0,
+    "fraud_rate_pct": 0.0,
+    "risk_multiplier": 0.0,
+    "risk_tier": "ELEVATED_RISK",
+    "explanation": "Пограничное ночное время со сниженной активностью легитимных клиентов и повышенным риском несанкционированного доступа."
+  },
+  {
+    "hour": 1,
+    "hour_label": "01:00 - 01:59",
+    "total_transactions": 237,
+    "fraud_count": 87,
+    "fraud_rate_pct": 36.71,
+    "risk_multiplier": 12.78,
+    "risk_tier": "CRITICAL_NIGHT_HOURS",
+    "explanation": "Период максимальной уязвимости (ночь 01:00-05:00): активность социальной инженерии, кража сессий и вывод средств на дроп-счета, пока владелец спит."
+  },
+  {
+    "hour": 2,
+    "hour_label": "02:00 - 02:59",
+    "total_transactions": 212,
+    "fraud_count": 88,
+    "fraud_rate_pct": 41.51,
+    "risk_multiplier": 14.45,
+    "risk_tier": "CRITICAL_NIGHT_HOURS",
+    "explanation": "Период максимальной уязвимости (ночь 01:00-05:00): активность социальной инженерии, кража сессий и вывод средств на дроп-счета, пока владелец спит."
+  },
+  {
+    "hour": 3,
+    "hour_label": "03:00 - 03:59",
+    "total_transactions": 170,
+    "fraud_count": 61,
+    "fraud_rate_pct": 35.88,
+    "risk_multiplier": 12.49,
+    "risk_tier": "CRITICAL_NIGHT_HOURS",
+    "explanation": "Период максимальной уязвимости (ночь 01:00-05:00): активность социальной инженерии, кража сессий и вывод средств на дроп-счета, пока владелец спит."
+  },
+  {
+    "hour": 4,
+    "hour_label": "04:00 - 04:59",
+    "total_transactions": 251,
+    "fraud_count": 81,
+    "fraud_rate_pct": 32.27,
+    "risk_multiplier": 11.24,
+    "risk_tier": "CRITICAL_NIGHT_HOURS",
+    "explanation": "Период максимальной уязвимости (ночь 01:00-05:00): активность социальной инженерии, кража сессий и вывод средств на дроп-счета, пока владелец спит."
+  },
+  {
+    "hour": 5,
+    "hour_label": "05:00 - 05:59",
+    "total_transactions": 310,
+    "fraud_count": 89,
+    "fraud_rate_pct": 28.71,
+    "risk_multiplier": 10.0,
+    "risk_tier": "CRITICAL_NIGHT_HOURS",
+    "explanation": "Период максимальной уязвимости (ночь 01:00-05:00): активность социальной инженерии, кража сессий и вывод средств на дроп-счета, пока владелец спит."
+  },
+  {
+    "hour": 6,
+    "hour_label": "06:00 - 06:59",
+    "total_transactions": 559,
+    "fraud_count": 18,
+    "fraud_rate_pct": 3.22,
+    "risk_multiplier": 1.12,
+    "risk_tier": "ELEVATED_RISK",
+    "explanation": "Пограничное ночное время со сниженной активностью легитимных клиентов и повышенным риском несанкционированного доступа."
+  },
+  {
+    "hour": 7,
+    "hour_label": "07:00 - 07:59",
+    "total_transactions": 1002,
+    "fraud_count": 23,
+    "fraud_rate_pct": 2.3,
+    "risk_multiplier": 0.8,
+    "risk_tier": "MODERATE_EVENING",
+    "explanation": "Вечерний бытовой трафик с умеренным стандартным уровнем мониторинга."
+  },
+  {
+    "hour": 8,
+    "hour_label": "08:00 - 08:59",
+    "total_transactions": 1374,
+    "fraud_count": 15,
+    "fraud_rate_pct": 1.09,
+    "risk_multiplier": 0.38,
+    "risk_tier": "MODERATE_EVENING",
+    "explanation": "Вечерний бытовой трафик с умеренным стандартным уровнем мониторинга."
+  },
+  {
+    "hour": 9,
+    "hour_label": "09:00 - 09:59",
+    "total_transactions": 1753,
+    "fraud_count": 23,
+    "fraud_rate_pct": 1.31,
+    "risk_multiplier": 0.46,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 10,
+    "hour_label": "10:00 - 10:59",
+    "total_transactions": 1786,
+    "fraud_count": 12,
+    "fraud_rate_pct": 0.67,
+    "risk_multiplier": 0.23,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 11,
+    "hour_label": "11:00 - 11:59",
+    "total_transactions": 1852,
+    "fraud_count": 25,
+    "fraud_rate_pct": 1.35,
+    "risk_multiplier": 0.47,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 12,
+    "hour_label": "12:00 - 12:59",
+    "total_transactions": 1821,
+    "fraud_count": 15,
+    "fraud_rate_pct": 0.82,
+    "risk_multiplier": 0.29,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 13,
+    "hour_label": "13:00 - 13:59",
+    "total_transactions": 1786,
+    "fraud_count": 18,
+    "fraud_rate_pct": 1.01,
+    "risk_multiplier": 0.35,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 14,
+    "hour_label": "14:00 - 14:59",
+    "total_transactions": 1606,
+    "fraud_count": 21,
+    "fraud_rate_pct": 1.31,
+    "risk_multiplier": 0.46,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 15,
+    "hour_label": "15:00 - 15:59",
+    "total_transactions": 1619,
+    "fraud_count": 17,
+    "fraud_rate_pct": 1.05,
+    "risk_multiplier": 0.37,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 16,
+    "hour_label": "16:00 - 16:59",
+    "total_transactions": 1583,
+    "fraud_count": 12,
+    "fraud_rate_pct": 0.76,
+    "risk_multiplier": 0.26,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 17,
+    "hour_label": "17:00 - 17:59",
+    "total_transactions": 1551,
+    "fraud_count": 21,
+    "fraud_rate_pct": 1.35,
+    "risk_multiplier": 0.47,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 18,
+    "hour_label": "18:00 - 18:59",
+    "total_transactions": 1481,
+    "fraud_count": 23,
+    "fraud_rate_pct": 1.55,
+    "risk_multiplier": 0.54,
+    "risk_tier": "LOW_RISK_BUSINESS_HOURS",
+    "explanation": "Пик естественной активности: рабочие часы, стандартные платежи, оплата покупок и привычные переводы с минимальной долей аномалий."
+  },
+  {
+    "hour": 19,
+    "hour_label": "19:00 - 19:59",
+    "total_transactions": 1245,
+    "fraud_count": 13,
+    "fraud_rate_pct": 1.04,
+    "risk_multiplier": 0.36,
+    "risk_tier": "MODERATE_EVENING",
+    "explanation": "Вечерний бытовой трафик с умеренным стандартным уровнем мониторинга."
+  },
+  {
+    "hour": 20,
+    "hour_label": "20:00 - 20:59",
+    "total_transactions": 998,
+    "fraud_count": 22,
+    "fraud_rate_pct": 2.2,
+    "risk_multiplier": 0.77,
+    "risk_tier": "MODERATE_EVENING",
+    "explanation": "Вечерний бытовой трафик с умеренным стандартным уровнем мониторинга."
+  },
+  {
+    "hour": 21,
+    "hour_label": "21:00 - 21:59",
+    "total_transactions": 759,
+    "fraud_count": 12,
+    "fraud_rate_pct": 1.58,
+    "risk_multiplier": 0.55,
+    "risk_tier": "MODERATE_EVENING",
+    "explanation": "Вечерний бытовой трафик с умеренным стандартным уровнем мониторинга."
+  },
+  {
+    "hour": 22,
+    "hour_label": "22:00 - 22:59",
+    "total_transactions": 411,
+    "fraud_count": 9,
+    "fraud_rate_pct": 2.19,
+    "risk_multiplier": 0.76,
+    "risk_tier": "MODERATE_EVENING",
+    "explanation": "Вечерний бытовой трафик с умеренным стандартным уровнем мониторинга."
+  },
+  {
+    "hour": 23,
+    "hour_label": "23:00 - 23:59",
+    "total_transactions": 331,
+    "fraud_count": 13,
+    "fraud_rate_pct": 3.93,
+    "risk_multiplier": 1.37,
+    "risk_tier": "ELEVATED_RISK",
+    "explanation": "Пограничное ночное время со сниженной активностью легитимных клиентов и повышенным риском несанкционированного доступа."
+  }
+]

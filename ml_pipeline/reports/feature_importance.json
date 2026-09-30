@@ -1,0 +1,170 @@
+[
+  {
+    "rank": 1,
+    "feature": "balance_empty_ratio",
+    "label_ru": "Доля опустошения счета",
+    "shap_importance": 0.844
+  },
+  {
+    "rank": 2,
+    "feature": "amount_deviation_ratio",
+    "label_ru": "Отклонение от обычного чека клиента",
+    "shap_importance": 0.2158
+  },
+  {
+    "rank": 3,
+    "feature": "velocity_last_24h",
+    "label_ru": "Частота переводов за 24 часа",
+    "shap_importance": 0.1892
+  },
+  {
+    "rank": 4,
+    "feature": "hour",
+    "label_ru": "Время суток (час)",
+    "shap_importance": 0.1813
+  },
+  {
+    "rank": 5,
+    "feature": "is_new_recipient",
+    "label_ru": "Новый (неизвестный) получатель",
+    "shap_importance": 0.1125
+  },
+  {
+    "rank": 6,
+    "feature": "transaction_type_PAYMENT",
+    "label_ru": "Тип: Платеж",
+    "shap_importance": 0.0994
+  },
+  {
+    "rank": 7,
+    "feature": "transaction_type_MERCHANT",
+    "label_ru": "Тип: Мерчант",
+    "shap_importance": 0.094
+  },
+  {
+    "rank": 8,
+    "feature": "transaction_type_P2P_TRANSFER",
+    "label_ru": "Тип: P2P перевод",
+    "shap_importance": 0.0811
+  },
+  {
+    "rank": 9,
+    "feature": "is_new_device",
+    "label_ru": "Новое неопознанное устройство",
+    "shap_importance": 0.0559
+  },
+  {
+    "rank": 10,
+    "feature": "is_foreign_ip",
+    "label_ru": "Иностранный IP / VPN соединение",
+    "shap_importance": 0.0349
+  },
+  {
+    "rank": 11,
+    "feature": "amount",
+    "label_ru": "Сумма транзакции",
+    "shap_importance": 0.0248
+  },
+  {
+    "rank": 12,
+    "feature": "transaction_type_CASH_OUT",
+    "label_ru": "Тип: Снятие наличных",
+    "shap_importance": 0.0222
+  },
+  {
+    "rank": 13,
+    "feature": "memo_на",
+    "label_ru": "memo_на",
+    "shap_importance": 0.0219
+  },
+  {
+    "rank": 14,
+    "feature": "memo_обеда",
+    "label_ru": "memo_обеда",
+    "shap_importance": 0.007
+  },
+  {
+    "rank": 15,
+    "feature": "memo_бензин",
+    "label_ru": "memo_бензин",
+    "shap_importance": 0.004
+  },
+  {
+    "rank": 16,
+    "feature": "memo_оплата",
+    "label_ru": "memo_оплата",
+    "shap_importance": 0.0034
+  },
+  {
+    "rank": 17,
+    "feature": "memo_аренда",
+    "label_ru": "memo_аренда",
+    "shap_importance": 0.0018
+  },
+  {
+    "rank": 18,
+    "feature": "memo_перевод",
+    "label_ru": "memo_перевод",
+    "shap_importance": 0.0016
+  },
+  {
+    "rank": 19,
+    "feature": "memo_репетитора",
+    "label_ru": "memo_репетитора",
+    "shap_importance": 0.0009
+  },
+  {
+    "rank": 20,
+    "feature": "memo_пополнение",
+    "label_ru": "memo_пополнение",
+    "shap_importance": 0.0001
+  },
+  {
+    "rank": 21,
+    "feature": "memo_в",
+    "label_ru": "memo_в",
+    "shap_importance": 0.0
+  },
+  {
+    "rank": 22,
+    "feature": "memo_карты",
+    "label_ru": "memo_карты",
+    "shap_importance": 0.0
+  },
+  {
+    "rank": 23,
+    "feature": "memo_жилья",
+    "label_ru": "memo_жилья",
+    "shap_importance": 0.0
+  },
+  {
+    "rank": 24,
+    "feature": "memo_услуги",
+    "label_ru": "memo_услуги",
+    "shap_importance": 0.0
+  },
+  {
+    "rank": 25,
+    "feature": "memo_срочно",
+    "label_ru": "memo_срочно",
+    "shap_importance": 0.0
+  },
+  {
+    "rank": 26,
+    "feature": "memo_за",
+    "label_ru": "memo_за",
+    "shap_importance": 0.0
+  },
+  {
+    "rank": 27,
+    "feature": "memo_кино",
+    "label_ru": "memo_кино",
+    "shap_importance": 0.0
+  },
+  {
+    "rank": 28,
+    "feature": "memo_билеты",
+    "label_ru": "memo_билеты",
+    "shap_importance": 0.0
+  }
+]

@@ -1,0 +1,62 @@
+{
+  "Logistic Regression": {
+    "model_name": "Logistic Regression",
+    "precision_fraud": 0.8683,
+    "recall_fraud": 0.9944,
+    "f1_fraud": 0.9271,
+    "roc_auc": 1.0,
+    "accuracy": 0.9955,
+    "confusion_matrix": {
+      "true_negative": 6044,
+      "false_positive": 27,
+      "false_negative": 1,
+      "true_positive": 178
+    },
+    "summary": "Recall: 99.4%, Precision: 86.8%, ROC-AUC: 1.0000 (Обнаружено 178 из 179 мошенничеств, ложных тревог: 27)"
+  },
+  "Random Forest": {
+    "model_name": "Random Forest",
+    "precision_fraud": 0.9516,
+    "recall_fraud": 0.9888,
+    "f1_fraud": 0.9699,
+    "roc_auc": 0.9999,
+    "accuracy": 0.9982,
+    "confusion_matrix": {
+      "true_negative": 6062,
+      "false_positive": 9,
+      "false_negative": 2,
+      "true_positive": 177
+    },
+    "summary": "Recall: 98.9%, Precision: 95.2%, ROC-AUC: 0.9999 (Обнаружено 177 из 179 мошенничеств, ложных тревог: 9)"
+  },
+  "LightGBM": {
+    "model_name": "LightGBM",
+    "precision_fraud": 0.9568,
+    "recall_fraud": 0.9888,
+    "f1_fraud": 0.9725,
+    "roc_auc": 1.0,
+    "accuracy": 0.9984,
+    "confusion_matrix": {
+      "true_negative": 6063,
+      "false_positive": 8,
+      "false_negative": 2,
+      "true_positive": 177
+    },
+    "summary": "Recall: 98.9%, Precision: 95.7%, ROC-AUC: 1.0000 (Обнаружено 177 из 179 мошенничеств, ложных тревог: 8)"
+  },
+  "XGBoost": {
+    "model_name": "XGBoost",
+    "precision_fraud": 0.9468,
+    "recall_fraud": 0.9944,
+    "f1_fraud": 0.97,
+    "roc_auc": 0.9999,
+    "accuracy": 0.9982,
+    "confusion_matrix": {
+      "true_negative": 6061,
+      "false_positive": 10,
+      "false_negative": 1,
+      "true_positive": 178
+    },
+    "summary": "Recall: 99.4%, Precision: 94.7%, ROC-AUC: 0.9999 (Обнаружено 178 из 179 мошенничеств, ложных тревог: 10)"
+  }
+}
