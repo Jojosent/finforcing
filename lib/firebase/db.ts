@@ -21,6 +21,7 @@ export interface BankUser {
 
 export interface BankTransaction {
   id: string;
+  type: "TRANSFER" | "REQUEST";
   senderId: string;
   senderName: string;
   recipientId: string;
@@ -32,8 +33,8 @@ export interface BankTransaction {
   isNewRecipient: boolean;
   isNewDevice: boolean;
   isForeignIp: boolean;
-  fraudAnalysis: FraudAnalysisResult;
-  status: "APPROVED" | "REQUIRES_2FA" | "BLOCKED";
+  fraudAnalysis?: FraudAnalysisResult;
+  status: "APPROVED" | "REQUIRES_2FA" | "BLOCKED" | "PENDING_REQUEST" | "DECLINED";
   createdAt: string;
 }
 
@@ -149,8 +150,8 @@ export class BankDatabase {
   }): Promise<BankUser> {
     const id = `usr_${Date.now()}`;
     const cleanNum = Math.floor(1000 + Math.random() * 9000);
-    const balance = params.initialBalance || 500000;
-    
+    const balance = params.initialBalance !== undefined ? params.initialBalance : 500000;
+
     const newUser: BankUser = {
       id,
       name: params.name.trim(),
@@ -179,7 +180,7 @@ export class BankDatabase {
   /**
    * Authenticate user by email or name
    */
-  public static async authenticate(identifier: string): Promise<BankUser | null> {
+  public static async authenticate(identifier: string, password?: string): Promise<BankUser | null> {
     const cleanId = identifier.trim().toLowerCase();
     const users = await this.getUsers();
     const matched = users.find(
@@ -190,6 +191,10 @@ export class BankDatabase {
     );
 
     if (matched) {
+      if (password && matched.password && matched.password !== password) {
+        return null;
+      }
+
       // Mark as online
       matched.isOnline = true;
       matched.lastActive = new Date().toISOString();
@@ -204,6 +209,25 @@ export class BankDatabase {
       return matched;
     }
     return null;
+  }
+
+  /**
+   * Update User online activity
+   */
+  public static async updateActivity(userId: string, isOnline = true): Promise<void> {
+    const user = await this.getUserById(userId);
+    if (user) {
+      user.isOnline = isOnline;
+      user.lastActive = new Date().toISOString();
+      if (adminDb) {
+        try {
+          await adminDb.collection("bank_users").doc(userId).update({
+            isOnline,
+            lastActive: user.lastActive
+          });
+        } catch {}
+      }
+    }
   }
 
   /**
@@ -270,6 +294,7 @@ export class BankDatabase {
 
     const txRecord: BankTransaction = {
       id: `TXN-${Date.now().toString().slice(-6)}`,
+      type: "TRANSFER",
       senderId: sender.id,
       senderName: sender.name,
       recipientId: recipient.id,
@@ -296,6 +321,204 @@ export class BankDatabase {
 
     memoryTransactions.unshift(txRecord);
     return txRecord;
+  }
+
+  /**
+   * Create a Test Payment Request (Requester asks target user to send funds)
+   */
+  public static async createPaymentRequest(params: {
+    requesterId: string;
+    payerId: string;
+    amount: number;
+    memoText?: string;
+  }): Promise<BankTransaction> {
+    const requester = (await this.getUserById(params.requesterId)) || memoryUsers[0];
+    const payer = (await this.getUserById(params.payerId)) || memoryUsers[1];
+
+    const now = new Date();
+    const txRecord: BankTransaction = {
+      id: `REQ-${Date.now().toString().slice(-6)}`,
+      type: "REQUEST",
+      senderId: payer.id, // Who will pay
+      senderName: payer.name,
+      recipientId: requester.id, // Who will receive
+      recipientName: requester.name,
+      amount: params.amount,
+      hour: now.getHours(),
+      minute: now.getMinutes(),
+      memoText: params.memoText || "Тестовый запрос на перевод",
+      isNewRecipient: false,
+      isNewDevice: false,
+      isForeignIp: false,
+      status: "PENDING_REQUEST",
+      createdAt: now.toISOString()
+    };
+
+    if (adminDb) {
+      try {
+        await adminDb.collection("bank_transactions").doc(txRecord.id).set(txRecord);
+      } catch (err) {
+        console.warn("[Firestore] Request save fallback to memory:", err);
+      }
+    }
+
+    memoryTransactions.unshift(txRecord);
+    return txRecord;
+  }
+
+  /**
+   * Fulfill a Payment Request (Payer pays the requested funds)
+   */
+  public static async fulfillPaymentRequest(params: {
+    requestId: string;
+    payerId: string;
+  }): Promise<BankTransaction> {
+    let tx: BankTransaction | undefined;
+    if (adminDb) {
+      try {
+        const doc = await adminDb.collection("bank_transactions").doc(params.requestId).get();
+        if (doc.exists) {
+          tx = doc.data() as BankTransaction;
+        }
+      } catch {}
+    }
+    if (!tx) {
+      tx = memoryTransactions.find((t) => t.id === params.requestId);
+    }
+    if (!tx) throw new Error("Запрос не найден");
+
+    const payer = await this.getUserById(params.payerId);
+    const recipient = await this.getUserById(tx.recipientId);
+    if (!payer || !recipient) throw new Error("Пользователи не найдены");
+
+    if (payer.balance < tx.amount) {
+      throw new Error("Недостаточно средств на балансе");
+    }
+
+    const now = new Date();
+    const analysis = analyzeTransaction({
+      amount: tx.amount,
+      hour: now.getHours(),
+      minute: now.getMinutes(),
+      transactionType: "P2P_TRANSFER",
+      senderBalanceBefore: payer.balance,
+      senderAvgAmount: payer.avgAmount,
+      isNewRecipient: false,
+      velocityLast24h: 1,
+      isNewDevice: false,
+      isForeignIp: false,
+      memoText: `Оплата запроса: ${tx.memoText}`,
+      senderId: payer.id,
+      recipientId: recipient.id
+    });
+
+    tx.fraudAnalysis = analysis;
+    if (analysis.riskLevel === "HIGH") {
+      tx.status = "BLOCKED";
+    } else if (analysis.riskLevel === "MEDIUM") {
+      tx.status = "REQUIRES_2FA";
+    } else {
+      tx.status = "APPROVED";
+      payer.balance -= tx.amount;
+      recipient.balance += tx.amount;
+
+      if (adminDb) {
+        try {
+          const batch = adminDb.batch();
+          batch.update(adminDb.collection("bank_users").doc(payer.id), {
+            balance: payer.balance,
+            lastActive: new Date().toISOString()
+          });
+          batch.update(adminDb.collection("bank_users").doc(recipient.id), {
+            balance: recipient.balance,
+            lastActive: new Date().toISOString()
+          });
+          await batch.commit();
+        } catch {}
+      }
+    }
+
+    if (adminDb) {
+      try {
+        await adminDb.collection("bank_transactions").doc(tx.id).set(tx);
+      } catch {}
+    }
+
+    return tx;
+  }
+
+  /**
+   * Decline a Payment Request
+   */
+  public static async declinePaymentRequest(requestId: string): Promise<BankTransaction> {
+    let tx: BankTransaction | undefined;
+    if (adminDb) {
+      try {
+        const doc = await adminDb.collection("bank_transactions").doc(requestId).get();
+        if (doc.exists) {
+          tx = doc.data() as BankTransaction;
+        }
+      } catch {}
+    }
+    if (!tx) {
+      tx = memoryTransactions.find((t) => t.id === requestId);
+    }
+    if (!tx) throw new Error("Запрос не найден");
+
+    tx.status = "DECLINED";
+    if (adminDb) {
+      try {
+        await adminDb.collection("bank_transactions").doc(requestId).update({ status: "DECLINED" });
+      } catch {}
+    }
+    return tx;
+  }
+
+  /**
+   * Confirm 2FA transaction
+   */
+  public static async confirm2FATransfer(txId: string): Promise<BankTransaction> {
+    let tx: BankTransaction | undefined;
+    if (adminDb) {
+      try {
+        const doc = await adminDb.collection("bank_transactions").doc(txId).get();
+        if (doc.exists) {
+          tx = doc.data() as BankTransaction;
+        }
+      } catch {}
+    }
+    if (!tx) {
+      tx = memoryTransactions.find((t) => t.id === txId);
+    }
+    if (!tx) throw new Error("Транзакция не найдена");
+
+    const sender = await this.getUserById(tx.senderId);
+    const recipient = await this.getUserById(tx.recipientId);
+    if (!sender || !recipient) throw new Error("Пользователи не найдены");
+
+    sender.balance = Math.max(0, sender.balance - tx.amount);
+    recipient.balance += tx.amount;
+    tx.status = "APPROVED";
+
+    if (adminDb) {
+      try {
+        const batch = adminDb.batch();
+        batch.update(adminDb.collection("bank_users").doc(sender.id), {
+          balance: sender.balance,
+          lastActive: new Date().toISOString()
+        });
+        batch.update(adminDb.collection("bank_users").doc(recipient.id), {
+          balance: recipient.balance,
+          lastActive: new Date().toISOString()
+        });
+        batch.update(adminDb.collection("bank_transactions").doc(tx.id), {
+          status: "APPROVED"
+        });
+        await batch.commit();
+      } catch {}
+    }
+
+    return tx;
   }
 
   /**
